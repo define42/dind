@@ -6,8 +6,8 @@ RUN apk add buildah
 
 RUN adduser -D podman; echo podman:10000:5000 > /etc/subuid; echo podman:10000:5000 > /etc/subgid;
 
-VOLUME /var/lib/containers
-VOLUME /home/podman/.local/share/containers
+RUN mkdir -p /var/lib/containers
+RUN mkdir -p /home/podman/.local/share/containers
 
 #RUN wget https://raw.githubusercontent.com/containers/libpod/master/contrib/podmanimage/stable/containers.conf -O /etc/containers/containers.conf
 ADD https://raw.githubusercontent.com/containers/libpod/master/contrib/podmanimage/stable/containers.conf /etc/containers/containers.conf
