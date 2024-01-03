@@ -4,6 +4,7 @@ RUN apk add fuse-overlayfs
 RUN apk add podman
 RUN apk add buildah
 RUN apk add vim
+RUN apk add nmap
 
 RUN adduser -D podman; echo podman:10000:5000 > /etc/subuid; echo podman:10000:5000 > /etc/subgid;
 
