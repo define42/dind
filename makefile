@@ -1,6 +1,6 @@
 all:
-	docker build -t dind .
-	docker run -it --privileged dind /bin/sh
-test:
-	docker pull define42/dind:latest
-	docker run -it --privileged define42/dind:latest /bin/sh
+		docker build -t dind .
+		docker run --privileged -d --name dind dind
+stop:
+		docker stop dind
+		docker rm dind

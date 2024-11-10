@@ -1,24 +1,38 @@
-FROM docker:24.0.7-dind
+# Use Red Hat UBI 9 as the base image
+FROM redhat/ubi9:latest
 
-RUN apk add fuse-overlayfs
-RUN apk add podman
-RUN apk add buildah
-RUN apk add vim
-RUN apk add nmap
+# Enable the container-tools module and install Podman and required dependencies
+RUN dnf -y update && \
+    dnf -y install \
+        container-tools \
+        fuse-overlayfs \
+        iptables vim && \
+    dnf clean all
 
-RUN adduser -D podman; echo podman:10000:5000 > /etc/subuid; echo podman:10000:5000 > /etc/subgid;
+RUN dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
+RUN dnf install -y docker-compose-plugin
 
-RUN mkdir -p /var/lib/containers
-RUN mkdir -p /home/podman/.local/share/containers
+# Configure Podman storage to use fuse-overlayfs, which is suitable for running in a container
+RUN mkdir -p /etc/containers && \
+    echo -e "[storage]\ndriver = \"overlay\"\n[storage.options.overlay]\nmount_program = \"/usr/bin/fuse-overlayfs\"" > /etc/containers/storage.conf
 
-#RUN wget https://raw.githubusercontent.com/containers/libpod/master/contrib/podmanimage/stable/containers.conf -O /etc/containers/containers.conf
-ADD https://raw.githubusercontent.com/containers/libpod/master/contrib/podmanimage/stable/containers.conf /etc/containers/containers.conf
-ADD https://raw.githubusercontent.com/containers/libpod/master/contrib/podmanimage/stable/podman-containers.conf /home/podman/.config/containers/containers.conf
+# Optional: Create a non-root user for Podman operations
+RUN useradd -m podmanuser && \
+    mkdir -p /home/podmanuser/.config/containers && \
+    chown -R podmanuser:podmanuser /home/podmanuser/.config
 
-# chmod containers.conf and adjust storage.conf to enable Fuse storage.
-RUN chmod 644 /etc/containers/containers.conf; sed -i -e 's|^#mount_program|mount_program|g' -e '/additionalimage.*/a "/var/lib/shared",' -e 's|^mountopt[[:space:]]*=.*$|mountopt = "nodev,fsync=0"|g' /etc/containers/storage.conf
-RUN mkdir -p /var/lib/shared/overlay-images /var/lib/shared/overlay-layers /var/lib/shared/vfs-images /var/lib/shared/vfs-layers; touch /var/lib/shared/overlay-images/images.lock; touch /var/lib/shared/overlay-layers/layers.lock; touch /var/lib/shared/vfs-images/images.lock; touch /var/lib/shared/vfs-layers/layers.lock
+COPY podman-entrypoint.sh /podman-entrypoint.sh
+RUN chmod +x /podman-entrypoint.sh
+# Set the default user to avoid running as root (optional)
+USER podmanuser
+WORKDIR /home/podmanuser
+COPY docker-compose.yml /home/podmanuser/test/
 
-ENV _CONTAINERS_USERNS_CONFIGURED=""
+ENV XDG_RUNTIME_DIR=/home/podmanuser/podman
+RUN mkdir -p /home/podmanuser/podman
+RUN chmod 700 /home/podmanuser/podman
+ENV PODMAN_API_SOCKET=unix:///home/podmanuser/podman/podman.sock
+ENV DOCKER_HOST=unix:///home/podmanuser/podman/podman.sock
 
-RUN chown podman:podman -R /home/podman
+ENTRYPOINT ["/podman-entrypoint.sh"]
+#ENTRYPOINT ["podman", "system", "service", "--time=0", "unix:/home/podmanuser/podman/podman.sock"]
