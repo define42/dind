@@ -14,8 +14,8 @@ jobs:
             export RELEASE_DATE=$(date +"%Y.%m.%d.%H%M")
             echo $RELEASE_DATE
             echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-            docker build -t $IMAGE_NAME:latest .
-            docker push $IMAGE_NAME:latest
+            docker build -t $IMAGE_NAME:rhel .
+            docker push $IMAGE_NAME:rhel
             docker build -t $IMAGE_NAME:$RELEASE_DATE .
             docker push $IMAGE_NAME:$RELEASE_DATE
 workflows:
@@ -25,4 +25,4 @@ workflows:
       - publish-latest:
           filters:
             branches:
-              only: main
+              only: rhel
